@@ -2524,20 +2524,21 @@
                console.log('👥 Processing conference team...');
                
                const contactOperations = {
-                   create: teamState.newContacts || [],
-                   update: Object.keys(teamState.editedContacts || {}).map(contactId => ({
-                       originalId: contactId,
-                       name: teamState.editedContacts[contactId].name,
-                       workEmail: teamState.editedContacts[contactId].email,
-                       workPhone: teamState.editedContacts[contactId].phone,
-                       roleTitle: teamState.editedContacts[contactId].title
-                   })),
-                   delete: [],
-                   conferenceTeam: Array.from(teamState.attendingContacts).map(contactId => ({
-                       id: contactId,
-                       attending: true,
-                       isPrimary: contactId === primaryContactState.selectedContactId
-                   }))
+                    create: teamState.newContacts || [],
+                    update: Object.keys(teamState.editedContacts || {}).map(contactId => ({
+                        originalId: contactId,
+                        name: teamState.editedContacts[contactId].name,
+                        workEmail: teamState.editedContacts[contactId].email,
+                        workPhone: teamState.editedContacts[contactId].phone,
+                        roleTitle: teamState.editedContacts[contactId].title,
+                        dietaryRestrictions: teamState.editedContacts[contactId].dietaryRestrictions || teamState.editedContacts[contactId].dietary
+                    })),
+                    delete: [],
+                    conferenceTeam: Array.from(teamState.attendingContacts).map(contactId => ({
+                        id: contactId,
+                        attending: true,
+                        isPrimary: contactId === primaryContactState.selectedContactId
+                    }))
                 };
                 
                 // ADD THIS DEBUG LOGGING:
