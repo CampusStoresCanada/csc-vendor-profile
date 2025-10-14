@@ -2046,7 +2046,49 @@
                 }
             });
         }
+        function showContactModal() {
+            const modal = document.getElementById('contactModal');
+            if (modal) {
+                modal.classList.add('active');
+                modalState.isOpen = true;
+                
+                // Focus the first input
+                const firstInput = document.getElementById('nameInput');
+                if (firstInput) {
+                    setTimeout(() => firstInput.focus(), 100);
+                }
+            }
+        }
+        function cancelContactModal() {
+            const modal = document.getElementById('contactModal');
+            if (modal) {
+                modal.classList.remove('active');
+                modalState.isOpen = false;
+                modalState.formData = {};
+                
+                // Clear all inputs
+                ['name', 'title', 'email', 'phone', 'dietary'].forEach(fieldName => {
+                    const input = document.getElementById(`${fieldName}Input`);
+                    if (input) input.value = '';
+                });
+            }
+        }
         
+        function saveContactModal() {
+            // Validate required fields
+            if (!modalState.formData.name || modalState.formData.name.trim() === '') {
+                alert('Please enter a name');
+                return;
+            }
+            
+            if (modalState.mode === 'edit') {
+                saveEditedContact();
+            } else {
+                saveNewContact();
+            }
+            
+            cancelContactModal();
+        }
         function populateModalForm() {
             const fields = ['name', 'title', 'email', 'phone', 'dietary'];
             
