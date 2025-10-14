@@ -1219,11 +1219,18 @@
                 return;
             }
             
+            // Special validation for Step 3 - check dietary restrictions
+            if (currentStep === 3) {
+                if (!validateDietaryRestrictions()) {
+                    return;
+                }
+            }
+            
             if (currentStep < totalSteps) {
                 currentStep++;
                 showStep(currentStep);
                 updateStepNavigation();
-                updateMobileProgress(); // If this function exists
+                updateMobileProgress();
             }
         }
         
@@ -1303,7 +1310,43 @@
             const progressPercent = ((currentStep - 1) / (totalSteps - 1)) * 100;
             progressFill.style.width = `${Math.max(0, progressPercent)}%`;
         }
-
+        
+        function validateDietaryRestrictions() {
+            const attendingContacts = [];
+            const missingDietary = [];
+            
+            // Check all contacts that are marked as attending
+            for (const contactId of teamState.attendingContacts) {
+                // Find the contact
+                let contact = organizationContacts.find(c => c.id === contactId);
+                if (!contact) {
+                    contact = teamState.newContacts.find(c => c.id === contactId);
+                }
+                
+                if (!contact) continue;
+                
+                // Check if they have dietary restrictions
+                let dietaryInfo = contact.dietaryRestrictions;
+                
+                // Check if there's an edit that includes dietary info
+                if (teamState.editedContacts[contactId]) {
+                    dietaryInfo = teamState.editedContacts[contactId].dietary;
+                }
+                
+                // If empty or not specified, add to missing list
+                if (!dietaryInfo || dietaryInfo.trim() === '') {
+                    missingDietary.push(contact.name);
+                }
+            }
+            
+            if (missingDietary.length > 0) {
+                const contactNames = missingDietary.join(', ');
+                alert(`Please add dietary restrictions for the following attending contacts:\n\n${contactNames}\n\nClick on each contact to edit and add their dietary restrictions (or enter "None" if they have no restrictions).`);
+                return false;
+            }
+            
+            return true;
+        }
         // ===========================================
         // STATE MANAGEMENT
         // ===========================================
@@ -1884,7 +1927,7 @@
         }
         
         function setupModalFieldHandlers() {
-            const fields = ['name', 'title', 'email', 'phone'];
+            const fields = ['name', 'title', 'email', 'phone', 'dietary'];
             
             fields.forEach(fieldName => {
                 const input = document.getElementById(`${fieldName}Input`);
@@ -1935,7 +1978,8 @@
                 name: contact.name || '',
                 title: contact.roleTitle || '',
                 email: contact.workEmail || '',
-                phone: contact.workPhone || ''
+                phone: contact.workPhone || '',
+                dietary: contact.dietaryRestrictions || ''
             };
             
             // Update modal content
@@ -1955,7 +1999,8 @@
                 name: '',
                 title: '',
                 email: '',
-                phone: ''
+                phone: '',
+                dietary: ''
             };
             
             // Update modal content
@@ -1967,12 +2012,13 @@
             console.log('➕ Opened new contact modal');
         }
         
-       function updateModalLabels(prefix) {
+        function updateModalLabels(prefix) {
             const labels = {
                 name: 'Name',
                 title: 'Job title',
                 email: 'Email',
-                phone: 'Phone'
+                phone: 'Phone',
+                dietary: 'Dietary Restrictions'
             };
             
             Object.keys(labels).forEach(fieldName => {
@@ -1980,8 +2026,20 @@
                 if (label) {
                     if (prefix === 'Current' && fieldName !== 'name') {
                         // For edit mode, show current values in labels
-                        const currentValue = modalState.currentContact[fieldName === 'title' ? 'roleTitle' : fieldName === 'email' ? 'workEmail' : fieldName === 'phone' ? 'workPhone' : fieldName];
-                        label.textContent = currentValue ? `Current: ${currentValue}` : `Current: ${labels[fieldName]}`;
+                        const fieldMap = {
+                            title: 'roleTitle',
+                            email: 'workEmail',
+                            phone: 'workPhone',
+                            dietary: 'dietaryRestrictions'
+                        };
+                        const dataField = fieldMap[fieldName] || fieldName;
+                        const currentValue = modalState.currentContact[dataField];
+                        
+                        if (fieldName === 'dietary') {
+                            label.textContent = currentValue ? `Current: ${currentValue}` : `Current: None Specified`;
+                        } else {
+                            label.textContent = currentValue ? `Current: ${currentValue}` : `Current: ${labels[fieldName]}`;
+                        }
                     } else {
                         label.textContent = `${prefix}: ${labels[fieldName]}`;
                     }
@@ -1990,63 +2048,19 @@
         }
         
         function populateModalForm() {
-            const fields = ['name', 'title', 'email', 'phone'];
+            const fields = ['name', 'title', 'email', 'phone', 'dietary'];
             
             fields.forEach(fieldName => {
                 const input = document.getElementById(`${fieldName}Input`);
                 if (input) {
                     input.value = modalState.formData[fieldName] || '';
+                    // Pre-fill "None" for dietary if empty and in new mode
+                    if (fieldName === 'dietary' && !modalState.formData[fieldName] && modalState.mode === 'new') {
+                        input.value = 'None';
+                        modalState.formData[fieldName] = 'None';
+                    }
                 }
             });
-        }
-        
-        function showContactModal() {
-            const modal = document.getElementById('contactModal');
-            const body = document.body;
-            
-            modal.classList.add('active');
-            body.classList.add('modal-open');
-            modalState.isOpen = true;
-            
-            // Focus first input
-            setTimeout(() => {
-                const firstInput = document.getElementById('nameInput');
-                if (firstInput) firstInput.focus();
-            }, 100);
-        }
-        
-        function hideContactModal() {
-            const modal = document.getElementById('contactModal');
-            const body = document.body;
-            
-            if (modal) modal.classList.remove('active');
-            body.classList.remove('modal-open');
-            modalState.isOpen = false;
-            
-            // Clear form data
-            modalState.formData = {};
-        }
-        
-        function cancelContactModal() {
-            hideContactModal();
-            console.log('❌ Contact modal cancelled');
-        }
-        
-        function saveContactModal() {
-            // Validate required fields
-            if (!modalState.formData.name || modalState.formData.name.trim() === '') {
-                alert('Please enter a name');
-                document.getElementById('nameInput').focus();
-                return;
-            }
-            
-            if (modalState.mode === 'edit') {
-                saveEditedContact();
-            } else {
-                saveNewContact();
-            }
-            
-            hideContactModal();
         }
         
         function saveEditedContact() {
@@ -2069,6 +2083,7 @@
                 roleTitle: modalState.formData.title,
                 workEmail: modalState.formData.email,
                 workPhone: modalState.formData.phone,
+                dietaryRestrictions: modalState.formData.dietary || 'None',
                 isNew: true
             };
             
@@ -2079,6 +2094,24 @@
             addNewContactToList(newContact);
             
             console.log('✅ New contact created:', newContact);
+        }
+        
+        function updateContactDisplay(contactId, updatedData) {
+            const contactElement = document.querySelector(`[data-contact-id="${contactId}"]`);
+            if (!contactElement) return;
+            
+            // Update the display with new data
+            const nameElement = contactElement.querySelector('.contact-name');
+            const titleElement = contactElement.querySelector('.contact-title');
+            const emailElement = contactElement.querySelector('.contact-email');
+            const phoneElement = contactElement.querySelector('.contact-phone');
+            const dietaryElement = contactElement.querySelector('.contact-dietary');
+            
+            if (nameElement) nameElement.textContent = updatedData.name;
+            if (titleElement) titleElement.textContent = updatedData.title;
+            if (emailElement) emailElement.textContent = updatedData.email;
+            if (phoneElement) phoneElement.textContent = formatPhoneForDisplay(updatedData.phone);
+            if (dietaryElement) dietaryElement.textContent = updatedData.dietary || 'None Specified';
         }
         
         function updateContactDisplay(contactId, updatedData) {
