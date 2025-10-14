@@ -1733,7 +1733,7 @@
             const formattedPhone = phone ? formatPhoneForDisplay(phone) : '';
             
             // Format dietary restrictions for display
-            const dietaryDisplay = contact.dietaryRestrictions || 'None Specified';
+            const dietaryDisplay = contact.dietaryRestrictions || 'No Dietary Restrictions Specified';
             
             contactDiv.innerHTML = `
                 <div class="contact-item-clickable" onclick="toggleAttendance('${contact.id}')"></div>
