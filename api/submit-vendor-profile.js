@@ -24,6 +24,37 @@ export default async function handler(req, res) {
     return;
   }
 
+  // 🧪 DEBUG LOGGING STARTS HERE (after line 35)
+  console.log('🧪 Testing Notion connection...');
+  console.log('🔍 Token starts with:', notionToken?.substring(0, 10));
+  console.log('🔍 Token length:', notionToken?.length);
+  console.log('🔍 Submissions DB ID:', submissionsDbId);
+  console.log('🔍 Organizations DB ID:', organizationsDbId);
+
+  // Try a simple query to test the connection
+  try {
+    console.log('🧪 Attempting to fetch submissions database metadata...');
+    const testResponse = await fetch(`https://api.notion.com/v1/databases/${submissionsDbId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${notionToken}`,
+        'Notion-Version': '2022-06-28'
+      }
+    });
+    
+    console.log('🧪 Test response status:', testResponse.status);
+    
+    if (!testResponse.ok) {
+      const errorData = await testResponse.json();
+      console.error('🧪 Test failed with error:', JSON.stringify(errorData, null, 2));
+    } else {
+      console.log('✅ Test passed - database is accessible!');
+    }
+  } catch (testError) {
+    console.error('🧪 Test error:', testError.message);
+  }
+  // 🧪 DEBUG LOGGING ENDS HERE
+
   try {
     const { token, formState, catalogueState } = req.body;
 
@@ -34,159 +65,4 @@ export default async function handler(req, res) {
 
     console.log('🚀 Creating vendor submission for token:', token);
 
-    // Get organization info for booth number
-    const orgResponse = await fetch(`https://api.notion.com/v1/databases/${organizationsDbId}/query`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${notionToken}`,
-        'Content-Type': 'application/json',
-        'Notion-Version': '2022-06-28'
-      },
-      body: JSON.stringify({
-        filter: {
-          property: 'Token',
-          rich_text: { equals: token }
-        }
-      })
-    });
-
-    const orgData = await orgResponse.json();
-    if (orgData.results.length === 0) {
-      res.status(404).json({ error: 'Organization not found' });
-      return;
-    }
-
-    const org = orgData.results[0];
-    console.log('🏢 Found organization:', org.properties.Organization?.title?.[0]?.text?.content);
-
-    // Get booth number using the proven method
-    let boothNumber = 'TBD';
-    const boothRelationArray = org.properties['26 Booth Number']?.relation;
-    
-    if (boothRelationArray && boothRelationArray.length > 0) {
-      const boothRelation = boothRelationArray[0];
-      const boothResponse = await fetch(`https://api.notion.com/v1/pages/${boothRelation.id}`, {
-        headers: {
-          'Authorization': `Bearer ${notionToken}`,
-          'Notion-Version': '2022-06-28'
-        }
-      });
-      
-      if (boothResponse.ok) {
-        const boothData = await boothResponse.json();
-        const titleText = boothData.properties['Booth Number']?.title?.[0]?.text?.content || '';
-        const boothMatch = titleText.match(/^(\d{1,3})/);
-        boothNumber = boothMatch ? boothMatch[1] : 'TBD';
-        console.log(`🎪 Found booth number: ${boothNumber}`);
-      }
-    }
-
-    // Create submission record with ONLY vendor data
-    console.log('📝 Creating submission record...');
-    const submissionData = {
-      parent: { database_id: submissionsDbId },
-      properties: {
-        "Token": {
-          title: [{ text: { content: token } }]
-        },
-        "Booth Number": {
-          rich_text: [{ text: { content: boothNumber } }]
-        },
-        "Submission Date": {
-          date: { start: new Date().toISOString().split('T')[0] }
-        },
-        "Status": {
-          status: { name: "Pending Review" }
-        }
-      }
-    };
-
-    // Add form fields
-    if (formState.companyName) {
-      submissionData.properties["Company Name"] = {
-        rich_text: [{ text: { content: formState.companyName } }]
-      };
-    }
-
-    if (formState.website) {
-      submissionData.properties["Website URL"] = {
-        url: formState.website
-      };
-    }
-
-    if (formState.category) {
-      submissionData.properties["Primary Category"] = {
-        select: { name: formState.category }
-      };
-    }
-
-    if (formState.description) {
-      submissionData.properties["Company Description"] = {
-        rich_text: [{ text: { content: formState.description } }]
-      };
-    }
-
-    if (formState.highlightHeadline) {
-      submissionData.properties["Highlight Product Name"] = {
-        rich_text: [{ text: { content: formState.highlightHeadline } }]
-      };
-    }
-
-    if (formState.highlightDescription) {
-      submissionData.properties["Highlight Product Description"] = {
-        rich_text: [{ text: { content: formState.highlightDescription } }]
-      };
-    }
-
-    if (formState.highlightDeal) {
-      submissionData.properties["Highlight The Deal"] = {
-        rich_text: [{ text: { content: formState.highlightDeal } }]
-      };
-    }
-    // Add file URLs
-    if (formState.highlightImageUrl) {
-      submissionData.properties["Highlight Picture S3"] = {
-      url: formState.highlightImageUrl
-    };
-    }
-
-    if (catalogueState.uploadedUrl) {
-      submissionData.properties["Catalogue"] = {
-        url: catalogueState.uploadedUrl
-      };
-    }
-
-    // Submit to Notion
-    const submissionResponse = await fetch('https://api.notion.com/v1/pages', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${notionToken}`,
-        'Content-Type': 'application/json',
-        'Notion-Version': '2022-06-28'
-      },
-      body: JSON.stringify(submissionData)
-    });
-
-    if (!submissionResponse.ok) {
-      const errorData = await submissionResponse.json();
-      console.error('❌ Notion submission failed:', errorData);
-      throw new Error(`Notion API error: ${errorData.message}`);
-    }
-
-    const submission = await submissionResponse.json();
-    console.log(`🎉 SUCCESS! Created vendor submission: ${submission.id}`);
-
-    res.status(200).json({
-      success: true,
-      submissionId: submission.id,
-      message: 'Vendor profile submitted for review!'
-    });
-
-  } catch (error) {
-    console.error('💥 Error in vendor profile submission:', error);
-    res.status(500).json({ 
-      error: 'Failed to submit vendor profile', 
-      details: error.message 
-    });
-  }
-}
+    // ... rest of your existing code stays the same ...
