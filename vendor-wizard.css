@@ -2761,3 +2761,40 @@ body::before {
         height: 40vh; /* Shorter on mobile so it fits better */
     }
 }
+/* Add to the contact info grid section (around line 1450) */
+
+.contact-dietary {
+    font-family: 'davis-sans', sans-serif;
+    font-weight: 400;
+    font-size: 0.8vw;
+    color: #888888;
+    line-height: 1.2;
+    grid-column: 1 / -1; /* Span full width */
+    grid-row: 3;
+    margin-top: 0.2vw;
+}
+
+/* Update the contact-info grid to accommodate dietary */
+.contact-info {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: max-content max-content;
+    grid-template-rows: auto auto auto; /* Changed from 2 to 3 rows */
+    column-gap: 1.5vw;
+    row-gap: 0.2vw;
+}
+
+/* Mobile adjustments for dietary restrictions */
+@media (orientation: portrait), (max-width: 768px) {
+    .contact-dietary {
+        font-size: 14px;
+        grid-column: 1;
+        grid-row: 5; /* After name, title, email, phone */
+        margin-top: 4px;
+    }
+    
+    .contact-info {
+        grid-template-rows: auto auto auto auto auto; /* 5 rows for mobile */
+    }
+}
