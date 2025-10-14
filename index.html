@@ -381,6 +381,13 @@
                                         <input type="tel" class="modal-field-input" id="phoneInput" placeholder="Enter phone number">
                                     </div>
                                 </div>
+                                
+                                <div class="modal-field">
+                                    <div class="modal-field-border unfocused" id="dietaryBorder">
+                                        <div class="modal-field-label unfocused" id="dietaryLabel">Dietary Restrictions</div>
+                                        <input type="text" class="modal-field-input" id="dietaryInput" placeholder="None">
+                                    </div>
+                                </div>
                             </form>
                             
                             <div class="modal-actions">
@@ -1671,11 +1678,19 @@
             contactDiv.dataset.contactId = contact.id;
             contactDiv.dataset.index = index;
             
-            const isAttending = teamState.attendingContacts.has(contact.id);
+            const isAttending = teamState.attendingContacts.has(contact.id) || contact.isAttending;
+            
+            // If contact was already attending, add them to teamState
+            if (contact.isAttending && !teamState.attendingContacts.has(contact.id)) {
+                teamState.attendingContacts.add(contact.id);
+            }
             
             // Format phone number for display
             const phone = contact.workPhone || '';
             const formattedPhone = phone ? formatPhoneForDisplay(phone) : '';
+            
+            // Format dietary restrictions for display
+            const dietaryDisplay = contact.dietaryRestrictions || 'None Specified';
             
             contactDiv.innerHTML = `
                 <div class="contact-item-clickable" onclick="toggleAttendance('${contact.id}')"></div>
@@ -1687,6 +1702,7 @@
                     <div class="contact-title">${contact.roleTitle || ''}</div>
                     <div class="contact-email">${contact.workEmail || ''}</div>
                     <div class="contact-phone">${formattedPhone}</div>
+                    <div class="contact-dietary">${dietaryDisplay}</div>
                 </div>
                 <button class="contact-edit" onclick="editContact('${contact.id}', ${index}); event.stopPropagation();">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
