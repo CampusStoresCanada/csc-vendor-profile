@@ -342,9 +342,12 @@ module.exports = async function handler(req, res) {
           const managedTagIds = Object.values(tagIds);
           const keepTags = currentTags.filter(tag => !managedTagIds.includes(tag.id));
           
-          // Add conference exhibitor tag if attending
+          // IMPORTANT: Only add Conference Exhibitor tag if attending is TRUE
           if (teamMember.attending && tagIds['26 Conference Exhibitor']) {
             keepTags.push({ id: tagIds['26 Conference Exhibitor'] });
+            console.log(`✅ Added Conference Exhibitor tag for ${teamMember.id}`);
+          } else if (!teamMember.attending && tagIds['26 Conference Exhibitor']) {
+            console.log(`🗑️ Removed Conference Exhibitor tag for ${teamMember.id} (not attending)`);
           }
           
           // Add role tag (Primary or Secondary Contact)
