@@ -1,5 +1,5 @@
 // api/save-conference-team.js - Handle all contact operations
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -54,7 +54,9 @@ export default async function handler(req, res) {
     });
 
     const orgData = await orgResponse.json();
-    if (orgData.results.length === 0) {
+    
+    if (!orgData || !orgData.results || orgData.results.length === 0) {
+      console.error('❌ Organization lookup failed:', orgData);
       res.status(404).json({ error: 'Organization not found' });
       return;
     }
@@ -95,6 +97,9 @@ export default async function handler(req, res) {
               },
               "Role/Title": {
                 rich_text: [{ text: { content: newContact.roleTitle || '' } }]
+              },
+              "Dietary Restrictions": {
+                rich_text: [{ text: { content: newContact.dietaryRestrictions || 'None' } }]
               },
               "Contact Type": {
                 multi_select: [{ name: "Vendor Partner" }]
@@ -144,7 +149,6 @@ export default async function handler(req, res) {
       
       for (const updateContact of contactOperations.update) {
         console.log(`🔄 Processing update for originalId: ${updateContact.originalId}`);
-        console.log(`📝 New name will be: "${updateContact.name}"`);
         
         try {
           const updateData = {
@@ -174,6 +178,14 @@ export default async function handler(req, res) {
           if (updateContact.roleTitle) {
             updateData.properties["Role/Title"] = {
               rich_text: [{ text: { content: updateContact.roleTitle } }]
+            };
+          }
+          
+          // Add dietary restrictions update
+          if (updateContact.dietaryRestrictions !== undefined) {
+            console.log(`🍽️ Setting Dietary Restrictions to: "${updateContact.dietaryRestrictions}"`);
+            updateData.properties["Dietary Restrictions"] = {
+              rich_text: [{ text: { content: updateContact.dietaryRestrictions || 'None' } }]
             };
           }
     
@@ -211,6 +223,7 @@ export default async function handler(req, res) {
     } else {
       console.log(`⚠️ No updates to process. contactOperations.update length:`, contactOperations.update?.length || 0);
     }
+    
     // Step 4: Handle DELETE operations (we'll mark as inactive rather than delete)
     if (contactOperations.delete && contactOperations.delete.length > 0) {
       console.log(`🗑️ Marking ${contactOperations.delete.length} contacts as inactive...`);
@@ -254,6 +267,7 @@ export default async function handler(req, res) {
         }
       }
     }
+    
     // DEBUG: Check if we reach the tagging section
     console.log('🔍 DEBUG - About to check conference team tagging...');
     console.log('🔍 DEBUG - contactOperations.conferenceTeam exists:', !!contactOperations.conferenceTeam);
@@ -281,7 +295,7 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
               filter: {
-                property: 'Name', // Assuming the tag name property is called 'Name'
+                property: 'Name',
                 title: { equals: tagName }
               }
             })
@@ -396,4 +410,4 @@ export default async function handler(req, res) {
       details: error.message 
     });
   }
-}
+};
