@@ -1,5 +1,5 @@
 // api/get-organization-contacts.js - Get all contacts for an organization
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -73,12 +73,14 @@ export default async function handler(req, res) {
     console.log('🏢 Found organization:', organizationName);
     console.log('🔍 Organization ID for relation:', organizationId);
     
-    // Step 2: Get the "Primary Contact" tag ID from Tag System
-    console.log('🏷️ Looking up Primary Contact tag...');
+    // Step 2: Get BOTH the "Primary Contact" AND "26 Conference Exhibitor" tag IDs
+    console.log('🏷️ Looking up required tags...');
     let primaryContactTagId = null;
+    let conferenceExhibitorTagId = null;
     
     try {
-      const tagResponse = await fetch(`https://api.notion.com/v1/databases/${tagSystemDbId}/query`, {
+      // Get Primary Contact tag
+      const primaryTagResponse = await fetch(`https://api.notion.com/v1/databases/${tagSystemDbId}/query`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${notionToken}`,
@@ -93,19 +95,39 @@ export default async function handler(req, res) {
         })
       });
       
-      if (tagResponse.ok) {
-        const tagData = await tagResponse.json();
+      if (primaryTagResponse.ok) {
+        const tagData = await primaryTagResponse.json();
         if (tagData.results.length > 0) {
           primaryContactTagId = tagData.results[0].id;
           console.log('✅ Found Primary Contact tag ID:', primaryContactTagId);
-        } else {
-          console.log('⚠️ No "Primary Contact" tag found in Tag System database');
         }
-      } else {
-        console.error('❌ Failed to query Tag System database:', tagResponse.status);
+      }
+
+      // Get 26 Conference Exhibitor tag
+      const conferenceTagResponse = await fetch(`https://api.notion.com/v1/databases/${tagSystemDbId}/query`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${notionToken}`,
+          'Content-Type': 'application/json',
+          'Notion-Version': '2022-06-28'
+        },
+        body: JSON.stringify({
+          filter: {
+            property: 'Name',
+            title: { equals: '26 Conference Exhibitor' }
+          }
+        })
+      });
+      
+      if (conferenceTagResponse.ok) {
+        const tagData = await conferenceTagResponse.json();
+        if (tagData.results.length > 0) {
+          conferenceExhibitorTagId = tagData.results[0].id;
+          console.log('✅ Found 26 Conference Exhibitor tag ID:', conferenceExhibitorTagId);
+        }
       }
     } catch (error) {
-      console.error('💥 Error finding Primary Contact tag:', error);
+      console.error('💥 Error finding tags:', error);
     }
     
     // Step 3: Get contacts where Organization relation = this org ID
@@ -135,18 +157,27 @@ export default async function handler(req, res) {
     const contactsData = await contactsResponse.json();
     console.log(`📋 Found ${contactsData.results.length} contacts for ${organizationName}`);
     
-    // Step 4: Format the contacts data and check for Primary Contact tag
+    // Step 4: Format the contacts data and check for tags
     const contacts = contactsData.results.map(contact => {
       const props = contact.properties;
       
       // Check if this contact has the Primary Contact tag
       let isPrimaryContact = false;
-      if (primaryContactTagId && props['Personal Tag']?.relation) {
-        // Check if any of the related tags match our Primary Contact tag ID
-        isPrimaryContact = props['Personal Tag'].relation.some(tag => tag.id === primaryContactTagId);
+      let isAttending = false;
+      
+      if (props['Personal Tag']?.relation) {
+        const tagIds = props['Personal Tag'].relation.map(tag => tag.id);
         
-        if (isPrimaryContact) {
+        // Check for Primary Contact tag
+        if (primaryContactTagId && tagIds.includes(primaryContactTagId)) {
+          isPrimaryContact = true;
           console.log(`👑 Found primary contact: ${props.Name?.title?.[0]?.text?.content}`);
+        }
+        
+        // Check for Conference Exhibitor tag (means they're already attending)
+        if (conferenceExhibitorTagId && tagIds.includes(conferenceExhibitorTagId)) {
+          isAttending = true;
+          console.log(`✅ Found attending contact: ${props.Name?.title?.[0]?.text?.content}`);
         }
       }
       
@@ -157,10 +188,11 @@ export default async function handler(req, res) {
         workEmail: props['Work Email']?.email || '',
         workPhone: props['Work Phone Number']?.phone_number || '',
         roleTitle: props['Role/Title']?.rich_text?.[0]?.text?.content || '',
+        dietaryRestrictions: props['Dietary Restrictions']?.rich_text?.[0]?.text?.content || '',
         contactType: props['Contact Type']?.select?.name || '',
         tags: props.Tags?.multi_select?.map(tag => tag.name) || [],
         notes: props.Notes?.rich_text?.[0]?.text?.content || '',
-        isAttending: false,
+        isAttending: isAttending,
         isPrimaryContact: isPrimaryContact
       };
     });
@@ -171,10 +203,12 @@ export default async function handler(req, res) {
       (contact.workEmail || contact.workPhone)
     );
     
-    // Count primary contacts for debugging
+    // Count for debugging
     const primaryContactsCount = validContacts.filter(c => c.isPrimaryContact).length;
-    console.log(`👑 Found ${primaryContactsCount} primary contacts`);
+    const attendingCount = validContacts.filter(c => c.isAttending).length;
     
+    console.log(`👑 Found ${primaryContactsCount} primary contacts`);
+    console.log(`✅ Found ${attendingCount} already attending contacts`);
     console.log(`✅ Returning ${validContacts.length} valid contacts`);
     
     res.status(200).json({
@@ -183,7 +217,8 @@ export default async function handler(req, res) {
       contacts: validContacts,
       totalFound: contactsData.results.length,
       validContacts: validContacts.length,
-      primaryContactsFound: primaryContactsCount
+      primaryContactsFound: primaryContactsCount,
+      attendingContactsFound: attendingCount
     });
     
   } catch (error) {
@@ -193,4 +228,4 @@ export default async function handler(req, res) {
       details: error.message 
     });
   }
-}
+};
