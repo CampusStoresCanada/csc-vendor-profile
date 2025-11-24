@@ -105,7 +105,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (formState.highlightDeal) {
-      updateData.properties["Highlight The Deal"] = {
+      updateData.properties["Highlight the Deal"] = {
         rich_text: [{ text: { content: formState.highlightDeal } }]
       };
     }
