@@ -111,8 +111,8 @@ module.exports = async function handler(req, res) {
     }
 
     if (formState.highlightImageUrl) {
-      updateData.properties["Highlight Picture S3"] = {
-        url: formState.highlightImageUrl
+      updateData.properties["Highlight Photo"] = {
+        rich_text: [{ text: { content: formState.highlightImageUrl } }]
       };
     }
 

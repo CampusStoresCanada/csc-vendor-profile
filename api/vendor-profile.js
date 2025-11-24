@@ -109,7 +109,7 @@ module.exports = async function handler(req, res) {
         highlightProductName: org.properties['Highlight Product Name']?.rich_text?.[0]?.text?.content || '',
         highlightProductDescription: org.properties['Highlight Product Description']?.rich_text?.[0]?.text?.content || '',
         highlightTheDeal: org.properties['Highlight the Deal']?.rich_text?.[0]?.text?.content || '',
-        highlightPictureS3: org.properties['Highlight Picture S3']?.url || '',
+        highlightPictureS3: org.properties['Highlight Photo']?.rich_text?.[0]?.text?.content || '',
         catalogueUrl: org.properties['Catalogue URL']?.url || ''
       }
     };
