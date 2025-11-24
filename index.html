@@ -971,8 +971,11 @@
             editButton.style.opacity = '1';
             
             activeField = null;
-            
+
             console.log('📝 Updated field:', fieldName, '=', newValue);
+
+            // Update button state after field changes
+            updateNextButtonState();
         }
 
         function cancelEdit(fieldName) {
@@ -1255,6 +1258,36 @@
             return allValid;
         }
 
+        // Update Next button state based on validation
+        function updateNextButtonState() {
+            const nextBtns = document.querySelectorAll('.next-btn');
+            if (!nextBtns || nextBtns.length === 0) return;
+
+            const errors = validateStepContent(currentStep);
+
+            nextBtns.forEach(btn => {
+                if (errors.length > 0) {
+                    btn.disabled = true;
+                    btn.classList.add('disabled');
+                } else {
+                    btn.disabled = false;
+                    btn.classList.remove('disabled');
+                }
+            });
+
+            if (errors.length > 0) {
+                console.log(`🔒 Next button disabled - ${errors.length} validation errors`);
+            } else {
+                console.log('✅ Next button enabled - all fields valid');
+            }
+        }
+
+        // Check validation silently (without showing errors) for button state
+        function checkValidationSilently() {
+            const errors = validateStepContent(currentStep);
+            return errors.length === 0;
+        }
+
         // ===========================================
         // INITIALIZATION
         // ===========================================
@@ -1376,8 +1409,10 @@
                     initializeStep6();
                     initializedSteps.add(6);
                 }
-            } 
-                
+            }
+
+            // Update button state after showing step
+            setTimeout(() => updateNextButtonState(), 100);
         }
 
         function updateStepNavigation() {
@@ -1780,6 +1815,8 @@
                         showUploadedImage(imageUrl);
                         formState.highlightImageUrl = imageUrl;
                         console.log('✅ Image uploaded successfully:', imageUrl);
+                        // Update button state after image upload
+                        updateNextButtonState();
                     } else {
                         throw new Error('No highlight image URL found in response');
                     }
@@ -2604,6 +2641,8 @@
                 if (catalogueUrl) {
                     catalogueState.uploadedUrl = catalogueUrl;
                     console.log('✅ Catalogue uploaded successfully:', catalogueUrl);
+                    // Update button state after catalogue upload
+                    setTimeout(() => updateNextButtonState(), 1100);
                 } else {
                     throw new Error('No catalogue URL found in response');
                 }

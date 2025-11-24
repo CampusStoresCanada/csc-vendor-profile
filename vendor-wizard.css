@@ -719,6 +719,21 @@ body::before {
     background: #005a94;
 }
 
+/* Disabled button state */
+.next-btn:disabled,
+.next-btn.disabled {
+    background: #cccccc !important;
+    color: #888888 !important;
+    cursor: not-allowed !important;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.next-btn:disabled:hover,
+.next-btn.disabled:hover {
+    background: #cccccc !important;
+}
+
 .previous-btn {
     background: #ffffff;
     color: #666666;
@@ -870,25 +885,33 @@ body::before {
    =========================================== */
 
 .field-border.error-state::before {
-    border-color: #dc3545 !important;
+    border-color: #ff1744 !important;
+    border-width: 3px !important;
 }
 
 .dropdown-display.error-state {
-    border-color: #dc3545 !important;
+    border-color: #ff1744 !important;
+    border-width: 3px !important;
+}
+
+/* Red text color for fields with errors */
+.field-border.error-state .field-display,
+.field-border.error-state .field-display-text {
+    color: #ff1744 !important;
 }
 
 @keyframes errorPulse {
-    0% { 
+    0% {
         transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
+        box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.5);
     }
-    50% { 
+    50% {
         transform: scale(1.02);
-        box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.2);
+        box-shadow: 0 0 0 6px rgba(255, 23, 68, 0.3);
     }
-    100% { 
+    100% {
         transform: scale(1);
-        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+        box-shadow: 0 0 0 0 rgba(255, 23, 68, 0);
     }
 }
 
@@ -898,12 +921,12 @@ body::before {
     left: 0;
     font-family: 'davis-sans', sans-serif;
     font-size: 0.8vw;
-    color: #dc3545;
-    font-weight: 500;
-    background: #ffffff;
-    padding: 0.2vw 0.5vw;
-    border-radius: 0.2vw;
-    border: 1px solid #dc3545;
+    color: #ff1744;
+    font-weight: 600;
+    background: #fff5f5;
+    padding: 0.3vw 0.6vw;
+    border-radius: 0.3vw;
+    border: 2px solid #ff1744;
     white-space: nowrap;
     z-index: 15;
     display: none;
@@ -1128,10 +1151,12 @@ body::before {
     bottom: -30px;
     left: 0;
     right: 0;
-    background: #dc3545;
+    background: #ff1744;
     color: white;
-    padding: 8px 12px;
+    padding: 10px 14px;
     border-radius: 6px;
+    font-weight: 600;
+    border: 2px solid #d50032;
     font-size: 12px;
     text-align: center;
     display: none;
@@ -1868,14 +1893,16 @@ body::before {
     bottom: -40px;
     left: 0;
     right: 0;
-    background: #dc3545;
+    background: #ff1744;
     color: white;
-    padding: 12px 16px;
+    padding: 14px 18px;
     border-radius: 6px;
     font-size: 0.9vw;
     text-align: center;
     display: none;
     font-family: 'davis-sans', sans-serif;
+    font-weight: 600;
+    border: 2px solid #d50032;
 }
 
 /* ===========================================
