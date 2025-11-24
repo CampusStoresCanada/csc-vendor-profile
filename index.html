@@ -1151,32 +1151,49 @@
 
         // Detect common filler/placeholder text patterns
         function isFillerText(value) {
-            if (!value || value.trim() === '') return true;
+            if (!value || value.trim() === '') {
+                console.log('  ⚠️ Empty or whitespace-only value');
+                return true;
+            }
 
             const fillerPatterns = [
-                /^(lorem ipsum|placeholder|example|test|demo|sample|tbd|tba|n\/a|none|null)/i,
-                /^(enter |add |type |write |insert |fill )/i,
-                /^(your |my |the |a |an )/i,
-                /^\.\.\.|^---/,
-                /^pending|^coming soon/i
+                { pattern: /^(lorem ipsum|placeholder|example text|test|demo|sample|tbd|tba|to be announced|n\/a|none|null|undefined)$/i, name: 'common placeholders' },
+                { pattern: /^(enter |add |type |write |insert |fill |describe |explain )/i, name: 'instruction prompts' },
+                { pattern: /^\.\.\.|^---+$|^xxx+$/i, name: 'placeholder symbols' },
+                { pattern: /^(pending|coming soon|update this|change this|edit this)$/i, name: 'placeholder instructions' }
             ];
 
-            return fillerPatterns.some(pattern => pattern.test(value.trim()));
+            for (const {pattern, name} of fillerPatterns) {
+                if (pattern.test(value.trim())) {
+                    console.log(`  ⚠️ Matched filler pattern: ${name}`);
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         // Check if required content fields are properly filled
         function hasValidContent(fieldName, value) {
+            console.log(`🔍 Validating ${fieldName}:`, value?.substring(0, 50) + '...');
+
             if (isFillerText(value)) {
+                console.log(`  ❌ ${fieldName} contains filler text`);
                 return false;
             }
+
             // Must have at least 10 characters of real content
             if (value.trim().length < 10) {
+                console.log(`  ❌ ${fieldName} too short: ${value.trim().length} chars (need 10+)`);
                 return false;
             }
+
+            console.log(`  ✅ ${fieldName} is valid`);
             return true;
         }
 
         function validateStepContent(stepNumber) {
+            console.log(`\n🔍 Validating Step ${stepNumber}...`);
             const errors = [];
 
             if (stepNumber === 1) {
@@ -1209,6 +1226,12 @@
                 if (!catalogueState.uploadedUrl || catalogueState.uploadedUrl.trim() === '') {
                     errors.push({ field: 'catalogue', message: 'Product catalogue is required' });
                 }
+            }
+
+            if (errors.length > 0) {
+                console.log(`❌ Step ${stepNumber} validation failed with ${errors.length} errors:`, errors);
+            } else {
+                console.log(`✅ Step ${stepNumber} validation passed!`);
             }
 
             return errors;
