@@ -97,17 +97,24 @@ module.exports = async function handler(req, res) {
       console.log(`No booth relation found for token: ${token}`);
     }
     
-    // Return the data
+    // Return the data with ALL organization fields
     const vendorData = {
       boothNumber: boothNumber,
+      organizationId: org.id, // Include the page ID for direct updates
       organization: {
         name: org.properties.Organization?.title?.[0]?.text?.content || '',
         website: org.properties.Website?.url || '',
         primaryCategory: org.properties['Primary Category']?.select?.name || '',
-        description: ''
+        description: org.properties['Company Description']?.rich_text?.[0]?.text?.content || '',
+        highlightProductName: org.properties['Highlight Product Name']?.rich_text?.[0]?.text?.content || '',
+        highlightProductDescription: org.properties['Highlight Product Description']?.rich_text?.[0]?.text?.content || '',
+        highlightTheDeal: org.properties['Highlight The Deal']?.rich_text?.[0]?.text?.content || '',
+        highlightPictureS3: org.properties['Highlight Picture S3']?.url || '',
+        catalogueUrl: org.properties['Catalogue URL']?.url || ''
       }
     };
-    
+
+    console.log('📤 Sending vendor data:', JSON.stringify(vendorData, null, 2));
     res.status(200).json(vendorData);
     
   } catch (error) {

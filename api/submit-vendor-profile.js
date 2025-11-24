@@ -15,45 +15,15 @@ module.exports = async function handler(req, res) {
   }
 
   const notionToken = process.env.NOTION_TOKEN;
-  const submissionsDbId = process.env.NOTION_SUBMISSIONS_DB_ID || '209a69bf0cfd80afa65dcf0575c9224f';
   const organizationsDbId = process.env.NOTION_ORGANIZATIONS_DB_ID;
-  
-  if (!notionToken || !submissionsDbId || !organizationsDbId) {
+
+  if (!notionToken || !organizationsDbId) {
     console.error('❌ Missing environment variables!');
     res.status(500).json({ error: 'Missing configuration' });
     return;
   }
 
-  // 🧪 DEBUG LOGGING STARTS HERE
-  console.log('🧪 Testing Notion connection...');
-  console.log('🔍 Token starts with:', notionToken?.substring(0, 10));
-  console.log('🔍 Token length:', notionToken?.length);
-  console.log('🔍 Submissions DB ID:', submissionsDbId);
-  console.log('🔍 Organizations DB ID:', organizationsDbId);
-
-  // Try a simple query to test the connection
-  try {
-    console.log('🧪 Attempting to fetch submissions database metadata...');
-    const testResponse = await fetch(`https://api.notion.com/v1/databases/${submissionsDbId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${notionToken}`,
-        'Notion-Version': '2022-06-28'
-      }
-    });
-    
-    console.log('🧪 Test response status:', testResponse.status);
-    
-    if (!testResponse.ok) {
-      const errorData = await testResponse.json();
-      console.error('🧪 Test failed with error:', JSON.stringify(errorData, null, 2));
-    } else {
-      console.log('✅ Test passed - database is accessible!');
-    }
-  } catch (testError) {
-    console.error('🧪 Test error:', testError.message);
-  }
-  // 🧪 DEBUG LOGGING ENDS HERE
+  console.log('🔄 Direct update mode - writing to Organizations DB only');
 
   try {
     const { token, formState, catalogueState } = req.body;
@@ -88,129 +58,94 @@ module.exports = async function handler(req, res) {
     }
 
     const org = orgData.results[0];
+    const orgId = org.id;
     console.log('🏢 Found organization:', org.properties.Organization?.title?.[0]?.text?.content);
+    console.log('🔄 Updating organization directly (no submission workflow)');
 
-    // Get booth number using the proven method
-    let boothNumber = 'TBD';
-    const boothRelationArray = org.properties['26 Booth Number']?.relation;
-    
-    if (boothRelationArray && boothRelationArray.length > 0) {
-      const boothRelation = boothRelationArray[0];
-      const boothResponse = await fetch(`https://api.notion.com/v1/pages/${boothRelation.id}`, {
-        headers: {
-          'Authorization': `Bearer ${notionToken}`,
-          'Notion-Version': '2022-06-28'
-        }
-      });
-      
-      if (boothResponse.ok) {
-        const boothData = await boothResponse.json();
-        const titleText = boothData.properties['Booth Number']?.title?.[0]?.text?.content || '';
-        const boothMatch = titleText.match(/^(\d{1,3})/);
-        boothNumber = boothMatch ? boothMatch[1] : 'TBD';
-        console.log(`🎪 Found booth number: ${boothNumber}`);
-      }
-    }
-
-    // Create submission record with ONLY vendor data
-    console.log('📝 Creating submission record...');
-    const submissionData = {
-      parent: { database_id: submissionsDbId },
-      properties: {
-        "Token": {
-          title: [{ text: { content: token } }]
-        },
-        "Booth Number": {
-          rich_text: [{ text: { content: boothNumber } }]
-        },
-        "Submission Date": {
-          date: { start: new Date().toISOString().split('T')[0] }
-        },
-        "Status": {
-          status: { name: "Pending Review" }
-        }
-      }
+    // Build the update payload with all form data
+    const updateData = {
+      properties: {}
     };
 
-    // Add form fields
+    // Update organization fields directly
     if (formState.companyName) {
-      submissionData.properties["Company Name"] = {
-        rich_text: [{ text: { content: formState.companyName } }]
+      updateData.properties["Organization"] = {
+        title: [{ text: { content: formState.companyName } }]
       };
     }
 
     if (formState.website) {
-      submissionData.properties["Website URL"] = {
+      updateData.properties["Website"] = {
         url: formState.website
       };
     }
 
     if (formState.category) {
-      submissionData.properties["Primary Category"] = {
+      updateData.properties["Primary Category"] = {
         select: { name: formState.category }
       };
     }
 
     if (formState.description) {
-      submissionData.properties["Company Description"] = {
+      updateData.properties["Company Description"] = {
         rich_text: [{ text: { content: formState.description } }]
       };
     }
 
     if (formState.highlightHeadline) {
-      submissionData.properties["Highlight Product Name"] = {
+      updateData.properties["Highlight Product Name"] = {
         rich_text: [{ text: { content: formState.highlightHeadline } }]
       };
     }
 
     if (formState.highlightDescription) {
-      submissionData.properties["Highlight Product Description"] = {
+      updateData.properties["Highlight Product Description"] = {
         rich_text: [{ text: { content: formState.highlightDescription } }]
       };
     }
 
     if (formState.highlightDeal) {
-      submissionData.properties["Highlight The Deal"] = {
+      updateData.properties["Highlight The Deal"] = {
         rich_text: [{ text: { content: formState.highlightDeal } }]
       };
     }
-    // Add file URLs
+
     if (formState.highlightImageUrl) {
-      submissionData.properties["Highlight Picture S3"] = {
-      url: formState.highlightImageUrl
-    };
+      updateData.properties["Highlight Picture S3"] = {
+        url: formState.highlightImageUrl
+      };
     }
 
     if (catalogueState.uploadedUrl) {
-      submissionData.properties["Catalogue"] = {
+      updateData.properties["Catalogue URL"] = {
         url: catalogueState.uploadedUrl
       };
     }
 
-    // Submit to Notion
-    const submissionResponse = await fetch('https://api.notion.com/v1/pages', {
-      method: 'POST',
+    // PATCH the organization record directly
+    const updateResponse = await fetch(`https://api.notion.com/v1/pages/${orgId}`, {
+      method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${notionToken}`,
         'Content-Type': 'application/json',
         'Notion-Version': '2022-06-28'
       },
-      body: JSON.stringify(submissionData)
+      body: JSON.stringify(updateData)
     });
 
-    if (!submissionResponse.ok) {
-      const errorData = await submissionResponse.json();
-      console.error('❌ Notion submission failed:', errorData);
+    if (!updateResponse.ok) {
+      const errorData = await updateResponse.json();
+      console.error('❌ Notion update failed:', errorData);
       throw new Error(`Notion API error: ${errorData.message}`);
     }
 
-    const submission = await submissionResponse.json();
-    console.log(`🎉 SUCCESS! Created vendor submission: ${submission.id}`);
+    const updatedOrg = await updateResponse.json();
+    console.log(`🎉 SUCCESS! Updated organization: ${updatedOrg.id}`);
 
     res.status(200).json({
       success: true,
-      submissionId: submission.id,
-      message: 'Vendor profile submitted for review!'
+      organizationId: updatedOrg.id,
+      message: 'Vendor profile updated successfully!'
     });
 
   } catch (error) {

@@ -1146,20 +1146,112 @@
             }
         }
 
+        // Detect common filler/placeholder text patterns
+        function isFillerText(value) {
+            if (!value || value.trim() === '') return true;
+
+            const fillerPatterns = [
+                /^(lorem ipsum|placeholder|example|test|demo|sample|tbd|tba|n\/a|none|null)/i,
+                /^(enter |add |type |write |insert |fill )/i,
+                /^(your |my |the |a |an )/i,
+                /^\.\.\.|^---/,
+                /^pending|^coming soon/i
+            ];
+
+            return fillerPatterns.some(pattern => pattern.test(value.trim()));
+        }
+
+        // Check if required content fields are properly filled
+        function hasValidContent(fieldName, value) {
+            if (isFillerText(value)) {
+                return false;
+            }
+            // Must have at least 10 characters of real content
+            if (value.trim().length < 10) {
+                return false;
+            }
+            return true;
+        }
+
+        function validateStepContent(stepNumber) {
+            const errors = [];
+
+            if (stepNumber === 1) {
+                // Step 1: Company Info
+                if (!formState.companyName || formState.companyName.trim() === '') {
+                    errors.push({ field: 'companyName', message: 'Company name is required' });
+                }
+                if (!formState.category || formState.category.trim() === '') {
+                    errors.push({ field: 'category', message: 'Primary category is required' });
+                }
+                if (!hasValidContent('description', formState.description)) {
+                    errors.push({ field: 'description', message: 'Company description needs real content (not placeholder text)' });
+                }
+            } else if (stepNumber === 2) {
+                // Step 2: Highlight Section
+                if (!hasValidContent('highlightHeadline', formState.highlightHeadline)) {
+                    errors.push({ field: 'highlightHeadline', message: 'Highlight headline needs real content' });
+                }
+                if (!hasValidContent('highlightDescription', formState.highlightDescription)) {
+                    errors.push({ field: 'highlightDescription', message: 'Highlight description needs real content' });
+                }
+                if (!hasValidContent('highlightDeal', formState.highlightDeal)) {
+                    errors.push({ field: 'highlightDeal', message: 'Conference special needs real content' });
+                }
+                if (!formState.highlightImageUrl || formState.highlightImageUrl.trim() === '') {
+                    errors.push({ field: 'highlightImage', message: 'Highlight image is required' });
+                }
+            } else if (stepNumber === 5) {
+                // Step 5: Catalogue
+                if (!catalogueState.uploadedUrl || catalogueState.uploadedUrl.trim() === '') {
+                    errors.push({ field: 'catalogue', message: 'Product catalogue is required' });
+                }
+            }
+
+            return errors;
+        }
+
         function validateAllFields() {
             let allValid = true;
-            
-            const companyNameError = validateField('companyName', formState.companyName);
-            if (companyNameError) {
-                console.log('❌ Company name validation failed:', companyNameError);
+
+            // Validate Step 1 content
+            const step1Errors = validateStepContent(1);
+            if (step1Errors.length > 0 && currentStep === 1) {
+                step1Errors.forEach(error => {
+                    console.log(`❌ ${error.field}:`, error.message);
+                    showFieldError(error.field, error.message);
+                });
                 allValid = false;
             }
-            
-            if (!validateCategorySelection()) {
-                console.log('❌ Category validation failed');
-                allValid = false;
+
+            // Validate Step 2 content
+            if (currentStep === 2) {
+                const step2Errors = validateStepContent(2);
+                if (step2Errors.length > 0) {
+                    step2Errors.forEach(error => {
+                        console.log(`❌ ${error.field}:`, error.message);
+                        if (error.field === 'highlightImage') {
+                            showImageError(error.message);
+                        } else {
+                            showFieldError(error.field, error.message);
+                        }
+                    });
+                    allValid = false;
+                }
             }
-            
+
+            // Validate Step 5 content
+            if (currentStep === 5) {
+                const step5Errors = validateStepContent(5);
+                if (step5Errors.length > 0) {
+                    step5Errors.forEach(error => {
+                        console.log(`❌ ${error.field}:`, error.message);
+                        showCatalogueError(error.message);
+                    });
+                    allValid = false;
+                }
+            }
+
             return allValid;
         }
 
@@ -1453,24 +1545,53 @@
         }
 
         function populateForm(data) {
-            console.log('📝 Populating form with:', data);
-            
+            console.log('📝 Populating form with raw data:', JSON.stringify(data, null, 2));
+
             document.getElementById('boothNumber').textContent = `Booth ${data.boothNumber}`;
-            
+
+            // Step 1 fields
             formState.companyName = data.organization?.name || '';
             formState.website = data.organization?.website || '';
             formState.category = data.organization?.primaryCategory || '';
             formState.description = data.organization?.description || '';
-            
+
+            console.log('📋 Step 1 Fields:');
+            console.log('  - companyName:', formState.companyName);
+            console.log('  - website:', formState.website);
+            console.log('  - category:', formState.category);
+            console.log('  - description:', formState.description);
+
             updateFieldDisplay('companyName', formState.companyName);
             updateFieldDisplay('website', formState.website);
             updateFieldDisplay('category', formState.category);
             updateFieldDisplay('description', formState.description);
-            
+
+            // Step 2 fields (Highlight section)
+            formState.highlightHeadline = data.organization?.highlightProductName || '';
+            formState.highlightDescription = data.organization?.highlightProductDescription || '';
+            formState.highlightDeal = data.organization?.highlightTheDeal || '';
+            formState.highlightImageUrl = data.organization?.highlightPictureS3 || '';
+
+            console.log('🎯 Step 2 Fields:');
+            console.log('  - highlightHeadline:', formState.highlightHeadline);
+            console.log('  - highlightDescription:', formState.highlightDescription);
+            console.log('  - highlightDeal:', formState.highlightDeal);
+            console.log('  - highlightImageUrl:', formState.highlightImageUrl);
+
+            // Step 5 field (Catalogue)
+            catalogueState.uploadedUrl = data.organization?.catalogueUrl || '';
+
+            console.log('📄 Step 5 Fields:');
+            console.log('  - catalogueUrl:', catalogueState.uploadedUrl);
+
+            // Store organization ID for updates
+            window.organizationId = data.organizationId;
             window.formData = {
                 organization: data.organization,
                 boothNumber: data.boothNumber
             };
+
+            console.log('✅ All form fields populated - check console for values');
         }
 
         // ===========================================
@@ -1481,6 +1602,12 @@
             updateFieldDisplay('highlightHeadline', formState.highlightHeadline);
             updateFieldDisplay('highlightDescription', formState.highlightDescription);
             updateFieldDisplay('highlightDeal', formState.highlightDeal);
+
+            // Show existing highlight image if one exists
+            if (formState.highlightImageUrl) {
+                showUploadedImage(formState.highlightImageUrl);
+            }
+
             console.log('🚀 Step 2 initialized with unified field system!');
         }
         
@@ -2324,7 +2451,33 @@
         
         function initializeStep5() {
             initializeCatalogueUpload();
+
+            // Show existing catalogue if one exists
+            if (catalogueState.uploadedUrl) {
+                showExistingCatalogue(catalogueState.uploadedUrl);
+            }
+
             console.log('🚀 Step 5 (Product Catalogue) initialized!');
+        }
+
+        function showExistingCatalogue(catalogueUrl) {
+            const placeholder = document.getElementById('cataloguePlaceholder');
+            const successSection = document.getElementById('catalogueSuccess');
+            const container = document.getElementById('catalogueUploadContainer');
+
+            if (placeholder && successSection && container) {
+                placeholder.style.display = 'none';
+                successSection.style.display = 'flex';
+                container.classList.add('uploaded');
+
+                // Update success text to show existing catalogue
+                const successFilename = document.getElementById('successFilename');
+                if (successFilename) {
+                    successFilename.textContent = 'catalogue.pdf';
+                }
+
+                console.log('📄 Existing catalogue displayed:', catalogueUrl);
+            }
         }
         
         function initializeCatalogueUpload() {
