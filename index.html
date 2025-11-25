@@ -1218,14 +1218,9 @@
                 if (!hasValidContent('highlightDeal', formState.highlightDeal)) {
                     errors.push({ field: 'highlightDeal', message: 'Conference special needs real content' });
                 }
-                if (!formState.highlightImageUrl || formState.highlightImageUrl.trim() === '') {
-                    errors.push({ field: 'highlightImage', message: 'Highlight image is required' });
-                }
+                // Photo is optional - no validation required
             } else if (stepNumber === 5) {
-                // Step 5: Catalogue
-                if (!catalogueState.uploadedUrl || catalogueState.uploadedUrl.trim() === '') {
-                    errors.push({ field: 'catalogue', message: 'Product catalogue is required' });
-                }
+                // Step 5: Catalogue is optional - no validation required
             }
 
             if (errors.length > 0) {
